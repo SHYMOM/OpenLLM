@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-heading: 'Plus Jakarta Sans', sans-serif;
+    
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    
+    --radius-xl: 1rem;
+    --radius-2xl: 1.5rem;
+}
+
+:root {
+    --background: #f8fafc;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+    --primary: #4f46e5;
+    --primary-foreground: #ffffff;
+    --secondary: #f1f5f9;
+    --secondary-foreground: #0f172a;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --accent: #f1f5f9;
+    --accent-foreground: #0f172a;
+    --destructive: #ef4444;
+    --border: #e2e8f0;
+    --input: #ffffff;
+    --ring: #4f46e5;
+}
+
+.dark {
+    --background: #09090b; /* Pitch dark with deep violet undertones */
+    --foreground: #fafafa;
+    --card: rgba(24, 24, 27, 0.4);
+    --card-foreground: #fafafa;
+    --popover: rgba(24, 24, 27, 0.8);
+    --popover-foreground: #fafafa;
+    --secondary: rgba(39, 39, 42, 0.5);
+    --secondary-foreground: #fafafa;
+    --muted: rgba(39, 39, 42, 0.5);
+    --muted-foreground: #a1a1aa;
+    --accent: rgba(79, 70, 229, 0.2);
+    --accent-foreground: #fafafa;
+    --destructive: #7f1d1d;
+    --border: rgba(255, 255, 255, 0.08);
+    --input: rgba(255, 255, 255, 0.05);
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    html {
+        @apply bg-background text-foreground transition-colors duration-200;
+        font-family: var(--font-sans);
+    }
+    body {
+        @apply min-h-screen antialiased bg-slate-50 dark:bg-[#09090b];
+        background-image: 
+            radial-gradient(circle at 15% 50%, rgba(79, 70, 229, 0.08), transparent 25%),
+            radial-gradient(circle at 85% 30%, rgba(236, 72, 153, 0.08), transparent 25%);
+        background-attachment: fixed;
+    }
+    
+    /* Ensure popovers have intense glass blur */
+    [data-slot="select-content"], [data-slot="popover-content"] {
+        @apply bg-white/80 dark:bg-slate-950/80 backdrop-blur-2xl border border-white/20 dark:border-white/10 shadow-2xl opacity-100;
+    }
+}
+
+@layer utilities {
+    .section-card {
+        @apply relative bg-white/60 dark:bg-slate-900/30 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] p-6 overflow-hidden transition-all duration-500;
+    }
+    .glass-panel {
+        @apply bg-white/40 dark:bg-slate-950/40 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-xl;
+    }
+    .glass-input {
+        @apply bg-white/50 dark:bg-slate-900/40 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/50 focus:bg-white/80 dark:focus:bg-slate-900/80 focus:border-indigo-500/50 transition-all shadow-inner;
+    }
+}
