@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Loader2, Globe, Cpu, Zap, AlertTriangle, Trash2, ChevronDown, ArrowRight, Radio } from 'lucide-react'
+import { Send, Loader2, Globe, Cpu, Zap, AlertTriangle, Trash2, ChevronDown, ArrowRight, Radio, Copy, Check } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useChat } from '@/contexts/ChatContext'
@@ -14,6 +14,13 @@ export default function PlaygroundPage() {
   const [selectedModel, setSelectedModel] = useState('auto')
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
+
+  const handleCopy = (content: string, index: number) => {
+    navigator.clipboard.writeText(content)
+    setCopiedIndex(index)
+    setTimeout(() => setCopiedIndex(null), 2000)
+  }
 
   // Sync URL ID with Chat Context
   useEffect(() => {
@@ -148,23 +155,31 @@ export default function PlaygroundPage() {
                           </ReactMarkdown>
                         </div>
                       </div>
-                      
-                      {msg.meta && (
-                        <div className="flex items-center gap-2 md:gap-3 px-1 flex-wrap">
-                          <div className="flex items-center gap-1 bg-white/50 dark:bg-white/5 backdrop-blur-md px-2 py-1 rounded-lg border border-white/20 dark:border-white/5">
-                            <Globe size={10} className="text-primary" />
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{msg.meta.platform}</span>
-                          </div>
-                          <div className="flex items-center gap-1 bg-white/50 dark:bg-white/5 backdrop-blur-md px-2 py-1 rounded-lg border border-white/20 dark:border-white/5">
-                            <Cpu size={10} />
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{msg.meta.model}</span>
-                          </div>
-                          <span className="text-[10px] font-mono font-bold text-slate-400 ml-auto">{msg.meta.latency}ms</span>
-                          {msg.meta.fallbackAttempts && msg.meta.fallbackAttempts > 0 && (
-                            <span className="text-[10px] font-bold text-amber-500">+{msg.meta.fallbackAttempts} reroute{msg.meta.fallbackAttempts > 1 ? 's' : ''}</span>
-                          )}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 md:gap-3 px-1 flex-wrap">
+                        {msg.meta && (
+                          <>
+                            <div className="flex items-center gap-1 bg-white/50 dark:bg-white/5 backdrop-blur-md px-2 py-1 rounded-lg border border-white/20 dark:border-white/5">
+                              <Globe size={10} className="text-primary" />
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{msg.meta.platform}</span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-white/50 dark:bg-white/5 backdrop-blur-md px-2 py-1 rounded-lg border border-white/20 dark:border-white/5">
+                              <Cpu size={10} />
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{msg.meta.model}</span>
+                            </div>
+                            <span className="text-[10px] font-mono font-bold text-slate-400 ml-auto">{msg.meta.latency}ms</span>
+                            {msg.meta.fallbackAttempts && msg.meta.fallbackAttempts > 0 && (
+                              <span className="text-[10px] font-bold text-amber-500">+{msg.meta.fallbackAttempts} reroute{msg.meta.fallbackAttempts > 1 ? 's' : ''}</span>
+                            )}
+                          </>
+                        )}
+                        <button
+                          onClick={() => handleCopy(msg.content, i)}
+                          className={`flex items-center justify-center p-1.5 bg-white/50 dark:bg-white/5 backdrop-blur-md rounded-lg border border-white/20 dark:border-white/5 text-slate-500 hover:text-primary transition-colors ${!msg.meta ? 'ml-auto' : ''}`}
+                          title="Copy Markdown"
+                        >
+                          {copiedIndex === i ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

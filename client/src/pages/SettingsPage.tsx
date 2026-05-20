@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { apiFetch } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/page-header'
-import { Shield, RefreshCw, AlertTriangle, BrainCircuit, Palette, Check } from 'lucide-react'
+import { Shield, RefreshCw, AlertTriangle, BrainCircuit, Palette, Check, Download, Upload, Database } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme, THEME_PRESETS } from '@/contexts/ThemeContext'
 
@@ -22,6 +22,14 @@ export default function SettingsPage() {
   const [globalMemory, setGlobalMemory] = useState('')
   const [loadingMemory, setLoadingMemory] = useState(false)
   const [successMemory, setSuccessMemory] = useState('')
+
+  // Backup State
+  const [includeApiKeys, setIncludeApiKeys] = useState(false)
+  const [mergeRestore, setMergeRestore] = useState(false)
+  const [loadingBackup, setLoadingBackup] = useState(false)
+  const [loadingRestore, setLoadingRestore] = useState(false)
+  const [backupMessage, setBackupMessage] = useState('')
+  const [backupError, setBackupError] = useState('')
 
   useEffect(() => {
     // Fetch initial global memory
@@ -71,6 +79,69 @@ export default function SettingsPage() {
     } finally {
       setLoadingMemory(false)
     }
+  }
+
+  const handleDownloadBackup = async () => {
+    setLoadingBackup(true)
+    setBackupMessage('')
+    setBackupError('')
+    try {
+      const response = await fetch(`/api/settings/backup?includeApiKeys=${includeApiKeys}`)
+      if (!response.ok) throw new Error('Failed to download backup')
+      const data = await response.json()
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `openllm-backup-${new Date().toISOString().split('T')[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      
+      setBackupMessage('Backup downloaded successfully.')
+      setTimeout(() => setBackupMessage(''), 3000)
+    } catch (err: any) {
+      setBackupError(err.message || 'Error creating backup.')
+    } finally {
+      setLoadingBackup(false)
+    }
+  }
+
+  const handleRestoreBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setLoadingRestore(true)
+    setBackupMessage('')
+    setBackupError('')
+
+    const reader = new FileReader()
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result as string
+        const data = JSON.parse(content)
+        
+        await apiFetch('/api/settings/restore', {
+          method: 'POST',
+          body: JSON.stringify({ data, merge: mergeRestore }),
+        })
+        
+        setBackupMessage('System restored successfully. Reloading...')
+        setTimeout(() => window.location.reload(), 1500)
+      } catch (err: any) {
+        setBackupError(err.message || 'Error restoring backup.')
+        setLoadingRestore(false)
+      }
+    }
+    reader.onerror = () => {
+      setBackupError('Failed to read file.')
+      setLoadingRestore(false)
+    }
+    reader.readAsText(file)
+    // Clear input so same file can be selected again
+    e.target.value = ''
   }
 
   return (
@@ -262,6 +333,101 @@ export default function SettingsPage() {
             </form>
           </section>
         </div>
+
+        {/* Backup & Restore Section */}
+        <section className="glass-panel rounded-3xl p-6 md:p-8">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="size-12 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-500 shadow-lg">
+              <Database size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-extrabold tracking-tight">System Backup & Restore</h2>
+              <p className="text-xs font-medium text-slate-500 mt-0.5">Export or import your chats, settings, and configurations.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Backup */}
+            <div className="space-y-4 p-5 rounded-2xl bg-white/30 dark:bg-slate-900/30 border border-white/20 dark:border-white/5">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Export Backup</h3>
+              <p className="text-xs text-slate-500">Download a complete snapshot of your OpenLLM environment.</p>
+              
+              <div className="flex items-center gap-2 mt-2">
+                <input 
+                  type="checkbox" 
+                  id="includeApiKeys" 
+                  checked={includeApiKeys}
+                  onChange={e => setIncludeApiKeys(e.target.checked)}
+                  className="rounded border-slate-300 text-primary focus:ring-primary"
+                />
+                <label htmlFor="includeApiKeys" className="text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                  Include API Keys in backup (Warning: sensitive data)
+                </label>
+              </div>
+
+              <Button onClick={handleDownloadBackup} disabled={loadingBackup} className="w-full sm:w-auto rounded-xl font-bold flex items-center gap-2">
+                <Download size={16} />
+                {loadingBackup ? 'Generating...' : 'Download Backup'}
+              </Button>
+            </div>
+
+            {/* Restore */}
+            <div className="space-y-4 p-5 rounded-2xl bg-white/30 dark:bg-slate-900/30 border border-white/20 dark:border-white/5">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Import Restore</h3>
+              <p className="text-xs text-slate-500">Restore your environment from a previous JSON backup file.</p>
+              
+              <div className="flex flex-col gap-2 mt-2">
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="radio" 
+                    id="restoreOverwrite" 
+                    name="restoreMode"
+                    checked={!mergeRestore}
+                    onChange={() => setMergeRestore(false)}
+                    className="text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="restoreOverwrite" className="text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                    <span className="font-bold">Overwrite:</span> Delete current data and replace
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="radio" 
+                    id="restoreMerge" 
+                    name="restoreMode"
+                    checked={mergeRestore}
+                    onChange={() => setMergeRestore(true)}
+                    className="text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="restoreMerge" className="text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                    <span className="font-bold">Merge:</span> Keep existing data, ignore conflicts
+                  </label>
+                </div>
+              </div>
+
+              <div className="relative mt-2">
+                <input 
+                  type="file" 
+                  accept=".json"
+                  onChange={handleRestoreBackup}
+                  disabled={loadingRestore}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                />
+                <Button variant="outline" disabled={loadingRestore} className="w-full sm:w-auto rounded-xl font-bold flex items-center gap-2 pointer-events-none">
+                  <Upload size={16} />
+                  {loadingRestore ? 'Restoring...' : 'Select Backup File'}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {(backupMessage || backupError) && (
+            <div className={`mt-6 p-4 rounded-xl flex items-start gap-3 border ${backupError ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'}`}>
+              {backupError ? <AlertTriangle size={18} className="shrink-0 mt-0.5" /> : <Check size={18} className="shrink-0 mt-0.5" />}
+              <p className="text-sm font-bold">{backupError || backupMessage}</p>
+            </div>
+          )}
+        </section>
 
       </div>
     </div>

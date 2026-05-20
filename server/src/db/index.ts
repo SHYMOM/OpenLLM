@@ -888,3 +888,63 @@ export function regenerateUnifiedKey(): string {
   db.prepare("UPDATE settings SET value = ? WHERE key = 'unified_api_key'").run(key);
   return key;
 }
+
+export function exportSystem(includeApiKeys: boolean) {
+  const db = getDb();
+  const data: any = {
+    settings: db.prepare('SELECT * FROM settings').all(),
+    models: db.prepare('SELECT * FROM models').all(),
+    fallback_config: db.prepare('SELECT * FROM fallback_config').all(),
+    chats: db.prepare('SELECT * FROM chats').all(),
+    chat_messages: db.prepare('SELECT * FROM chat_messages').all(),
+    requests: db.prepare('SELECT * FROM requests').all(),
+  };
+
+  // Remove admin password from export for security
+  data.settings = data.settings.filter((s: any) => s.key !== 'admin_password');
+
+  if (includeApiKeys) {
+    data.api_keys = db.prepare('SELECT * FROM api_keys').all();
+  }
+  return data;
+}
+
+export function importSystem(data: any, merge: boolean = false) {
+  const db = getDb();
+  const apply = db.transaction(() => {
+    // Determine tables to import
+    const tables = ['settings', 'models', 'fallback_config', 'chats', 'chat_messages', 'requests'];
+    if (data.api_keys) tables.push('api_keys');
+
+    for (const table of tables) {
+      if (!data[table] || !Array.isArray(data[table])) continue;
+
+      if (!merge) {
+        // If overwrite, delete existing data (except admin_password in settings)
+        if (table === 'settings') {
+          db.prepare("DELETE FROM settings WHERE key != 'admin_password'").run();
+        } else {
+          db.prepare(`DELETE FROM ${table}`).run();
+        }
+      }
+
+      if (data[table].length === 0) continue;
+
+      // Build insert statement dynamically
+      const sampleRow = data[table][0];
+      const keys = Object.keys(sampleRow);
+      const placeholders = keys.map(() => '?').join(', ');
+      
+      const insertOrReplace = merge ? 'INSERT OR IGNORE INTO' : 'INSERT OR REPLACE INTO';
+      const stmt = db.prepare(`${insertOrReplace} ${table} (${keys.join(', ')}) VALUES (${placeholders})`);
+
+      for (const row of data[table]) {
+        // Skip inserting admin_password from backup just to be safe
+        if (table === 'settings' && row.key === 'admin_password') continue;
+        
+        stmt.run(...keys.map(k => row[k]));
+      }
+    }
+  });
+  apply();
+}

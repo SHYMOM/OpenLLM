@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { getUnifiedApiKey, regenerateUnifiedKey, setSetting, getAdminPassword, getSetting } from '../db/index.js';
+import { getUnifiedApiKey, regenerateUnifiedKey, setSetting, getAdminPassword, getSetting, exportSystem, importSystem } from '../db/index.js';
 
 export const settingsRouter = Router();
 
@@ -44,4 +44,30 @@ settingsRouter.post('/global-memory', (req: Request, res: Response) => {
   const { memory } = req.body;
   setSetting('global_memory', memory || '');
   res.json({ success: true });
+});
+
+// Export backup
+settingsRouter.get('/backup', (req: Request, res: Response) => {
+  const includeApiKeys = req.query.includeApiKeys === 'true';
+  try {
+    const data = exportSystem(includeApiKeys);
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: { message: error.message } });
+  }
+});
+
+// Import backup
+settingsRouter.post('/restore', (req: Request, res: Response) => {
+  const { data, merge } = req.body;
+  if (!data || typeof data !== 'object') {
+    return res.status(400).json({ error: { message: 'Invalid backup data' } });
+  }
+  
+  try {
+    importSystem(data, merge === true);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: { message: error.message } });
+  }
 });
